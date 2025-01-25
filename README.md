@@ -31,12 +31,12 @@ user_info = api.get_own_user_info()
 print(user_info)
 ```
 
-## List of functions
+## Table of contents
 
 - [Unofficial IServ API](#unofficial-iserv-api)
   - [Installation](#installation)
   - [Basic usage](#basic-usage)
-  - [List of functions](#list-of-functions)
+  - [Table of contents](#table-of-contents)
   - [Supported Functionality](#supported-functionality)
     - [Get own User Information](#get-own-user-information)
     - [2. Set own User Information](#2-set-own-user-information)
