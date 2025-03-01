@@ -980,3 +980,25 @@ class IServAPI:
         disk_json = json.loads(disk_json.strip("()"))
 
         return disk_json
+
+    def get_folder_size(self, path: str) -> dict:
+        response = self._session.get(
+            f"https://{self.iserv_url}/iserv/file/calc?path={path}"
+        )
+        return response.json()
+
+    def get_goups(self) -> dict:
+
+        groups = {}
+        response = self._session.get(
+            f"https://{self.iserv_url}/iserv/profile/grouprequest/add"
+        )
+        soup = BeautifulSoup(response.text, "html.parser")
+        select = soup.find(
+            "select",
+            class_="select2",
+        )
+        options = select.children
+        for option in options:
+            groups[option["value"]] = option.text
+        return groups
