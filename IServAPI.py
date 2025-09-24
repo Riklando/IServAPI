@@ -1000,7 +1000,7 @@ class IServAPI:
         )
         return response.json()
 
-    def get_goups(self) -> dict:
+    def get_groups(self) -> dict:
 
         groups = {}
         response = self._session.get(
