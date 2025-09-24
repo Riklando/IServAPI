@@ -1013,5 +1013,5 @@ class IServAPI:
         )
         options = select.children
         for option in options:
-            groups[option["value"]] = option.text
+            groups[option.text] = option["value"]
         return groups
