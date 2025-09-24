@@ -18,6 +18,9 @@ import json
 
 
 class IServAPI:
+
+    # Technical
+
     def __init__(self, username, password, iserv_url):
         """
         Initializes the credentials and URLs needed for accessing the IServ system.
@@ -159,6 +162,8 @@ class IServAPI:
 
         # Retrieve and store session cookies after successful login
         self.__get_cookies()
+
+    # Own account
 
     def get_own_user_info(self):
         """
@@ -552,6 +557,83 @@ class IServAPI:
             logging.error(f"Error setting user information: {e}")
             raise ValueError("Error setting user information")
 
+    def get_notifications(self):
+        """
+        Retrieves notifications from the specified URL and returns them as a JSON object.
+        """
+        notifications = self._session.get(
+            f"https://{self.iserv_url}/iserv/user/api/notifications"
+        ).json()
+        logging.info("Got Notifications")
+        return notifications
+
+    def get_badges(self):
+        """
+        Retrieves the badges from the IServ server.
+
+        :return: A JSON object containing the badges.
+        """
+        badges = self._session.get(
+            f"https://{self.iserv_url}/iserv/app/navigation/badges"
+        ).json()
+        logging.info("Got Badges")
+        return badges
+
+    def read_all_notifications(self):
+        """
+        Reads all notifications from the server.
+
+        Returns:
+            dict: A JSON object containing the status.
+
+        Raises:
+            requests.exceptions.RequestException: If there is an error while making the request.
+        """
+        notifications = self._session.post(
+            f"https://{self.iserv_url}/iserv/notification/api/v1/notifications/readall",
+            cookies={
+                "IServSAT": self._IServSAT,
+                "IServSATId": self._IServSATId,
+                "IServSession": self._IServSession,
+            },
+        )
+        logging.info("Read all notifications")
+        return notifications
+
+    def read_notification(self, notification_id: int):
+        """
+        Sends a POST request to the IServ notification API to mark a specific notification as read.
+
+        Args:
+            notification_id (int): The ID of the notification to be marked as read. Note: notification_id can be returned from get_notifications()
+
+        Returns:
+            dict: The JSON response from the API call.
+
+        Raises:
+            requests.exceptions.RequestException: If there was an error making the API request.
+        """
+        notification = self._session.post(
+            f"https://{self.iserv_url}/iserv/notification/api/v1/notifications/{notification_id}/read",
+            cookies={
+                "IServSAT": self._IServSAT,
+                "IServSATId": self._IServSATId,
+                "IServSession": self._IServSession,
+            },
+        )
+        logging.info("read notification " + notification_id)
+        return notification
+
+    def get_disk_space(self) -> dict:
+        response = self._session.get(f"https://{self.iserv_url}/iserv/du/account")
+        soup = BeautifulSoup(response.text, "html.parser")
+        disk_json = soup.find("script", id="user-diskusage-data").get_text()
+        disk_json = json.loads(disk_json.strip("()"))
+
+        return disk_json
+
+    # Users
+
     def get_user_profile_picture(self, user, output_folder: str):
         """
         Retrieves the profile picture of a user and saves it to the specified output folder.
@@ -581,26 +663,6 @@ class IServAPI:
             # If not, write the content to a file with a WEBP extension in binary mode
             with open(file_path + user + ".webp", "wb") as f:
                 f.write(avatar.content)
-
-    def get_emails(self, path="INBOX", length=50, start=0, order="date", dir="desc"):
-        """
-        Retrieves emails from a specified path with optional parameters for length, start, order, and direction.
-
-        Parameters:
-            path (str): The path to retrieve emails from. Defaults to 'INBOX'.
-            length (int): The number of emails to retrieve. Defaults to 50.
-            start (int): The starting index for retrieving emails. Defaults to 0.
-            order (str): The order in which emails are listed. Defaults to 'date'.
-            dir (str): The direction of ordering, 'asc' for ascending and 'desc' for descending.
-
-        Returns:
-            dict: A JSON object containing the list of emails matching the specified criteria.
-        """
-        emails = self._session.get(
-            f"https://{self.iserv_url}/iserv/mail/api/message/list?path={path}&length={str(length)}&start={str(start)}&order%5Bcolumn%5D={order}&order%5Bdir%5D={dir}"
-        ).json()
-        logging.info("Got emails sccessfully!")
-        return emails
 
     def search_users(self, query):
         """
@@ -676,15 +738,53 @@ class IServAPI:
         logging.info("Searched users (autocomplete)")
         return users
 
-    def get_notifications(self):
+    def get_user_info(self, user):
         """
-        Retrieves notifications from the specified URL and returns them as a JSON object.
+        A function to retrieve user information from a given URL and parse it into a dictionary.
+        :param user: str - The user for who the information is being retrieved.
+        :return: dict - A dictionary containing the user information.
         """
-        notifications = self._session.get(
-            f"https://{self.iserv_url}/iserv/user/api/notifications"
+        response = self._session.get(
+            f"https://{self.iserv_url}/iserv/addressbook/public/show/{user}"
+        )
+        soup = BeautifulSoup(response.text, "html.parser")
+        table = soup.find("table")
+
+        # Read the table into a list of DataFrames
+        try:
+            dfs = pd.read_html(StringIO(str(table)), flavor="bs4")
+            data = []
+            for df in dfs:
+                data_dict = dict(zip(df[0], df[1]))
+                data.append(data_dict)
+            logging.info("Got info of user " + user)
+        except ValueError:
+            logging.error("No such user found!")
+            raise ValueError("No such user found!")
+
+        return data[0]
+
+    # Email
+
+    def get_emails(self, path="INBOX", length=50, start=0, order="date", dir="desc"):
+        """
+        Retrieves emails from a specified path with optional parameters for length, start, order, and direction.
+
+        Parameters:
+            path (str): The path to retrieve emails from. Defaults to 'INBOX'.
+            length (int): The number of emails to retrieve. Defaults to 50.
+            start (int): The starting index for retrieving emails. Defaults to 0.
+            order (str): The order in which emails are listed. Defaults to 'date'.
+            dir (str): The direction of ordering, 'asc' for ascending and 'desc' for descending.
+
+        Returns:
+            dict: A JSON object containing the list of emails matching the specified criteria.
+        """
+        emails = self._session.get(
+            f"https://{self.iserv_url}/iserv/mail/api/message/list?path={path}&length={str(length)}&start={str(start)}&order%5Bcolumn%5D={order}&order%5Bdir%5D={dir}"
         ).json()
-        logging.info("Got Notifications")
-        return notifications
+        logging.info("Got emails sccessfully!")
+        return emails
 
     def get_email_info(self, path="INBOX", length=0, start=0, order="date", dir="desc"):
         """
@@ -735,83 +835,6 @@ class IServAPI:
         ).json()
         logging.info("Got Email Folders")
         return mail_folders
-
-    def get_upcoming_events(self):
-        """
-        Retrieves the upcoming events from the IServ calendar API.
-
-        :return: A JSON object containing the upcoming events.
-        """
-        events = self._session.get(
-            f"https://{self.iserv_url}/iserv/calendar/api/upcoming"
-        ).json()
-        logging.info("Got upcomming events")
-        return events
-
-    def get_eventsources(self):
-        """
-        Retrieves the event sources from the calendar API.
-
-        :return: A JSON object containing the event sources.
-        """
-        eventsources = self._session.get(
-            f"https://{self.iserv_url}/iserv/calendar/api/eventsources"
-        ).json()
-        logging.info("Got eventsources")
-        return eventsources
-
-    def get_conference_health(self):
-        """
-        Get the health status of the conference API endpoint.
-
-        :return: JSON response containing the health status of the API
-        """
-        health = self._session.get(
-            f"https://{self.iserv_url}/iserv/videoconference/api/health"
-        ).json()
-        logging.info("Got Conference Health")
-        return health
-
-    def get_badges(self):
-        """
-        Retrieves the badges from the IServ server.
-
-        :return: A JSON object containing the badges.
-        """
-        badges = self._session.get(
-            f"https://{self.iserv_url}/iserv/app/navigation/badges"
-        ).json()
-        logging.info("Got Badges")
-        return badges
-
-    def file(self, davurl="default", username="default", password="default", path="/"):
-        """
-        A function that initializes a WebDAV client with the provided or default credentials and returns the client object.
-
-        Parameters:
-            davurl (str): The WebDAV URL. Default is "default".
-            username (str): The username for authentication. Default is "default".
-            password (str): The password for authentication. Default is "default".
-            path (str): The path for the WebDAV client. Default is "/".
-
-        Returns:
-            WebDAV client object: A WebDAV client object initialized with the provided or default credentials.
-        """
-        try:
-            davurl = "webdav." + self.iserv_url if davurl == "default" else davurl
-            username = self.username if username == "default" else username
-            password = self._password if password == "default" else password
-            options = {
-                "webdav_hostname": "https://" + davurl,
-                "webdav_login": username,
-                "webdav_password": password,
-            }
-            self.__DAVclient = wc.Client(options)
-            logging.info("Files initiated")
-            return self.__DAVclient
-        except WebDavException as e:
-            logging.error("Exception at file (webdav): " + str(e))
-            raise ValueError("Exception at file (webdav): " + str(e))
 
     def send_email(
         self,
@@ -902,84 +925,74 @@ class IServAPI:
             logging.error("Failed to send email:", e)
             raise smtplib.SMTPException(e)
 
-    def read_all_notifications(self):
+    # Calendar
+
+    def get_upcoming_events(self):
         """
-        Reads all notifications from the server.
+        Retrieves the upcoming events from the IServ calendar API.
+
+        :return: A JSON object containing the upcoming events.
+        """
+        events = self._session.get(
+            f"https://{self.iserv_url}/iserv/calendar/api/upcoming"
+        ).json()
+        logging.info("Got upcomming events")
+        return events
+
+    def get_eventsources(self):
+        """
+        Retrieves the event sources from the calendar API.
+
+        :return: A JSON object containing the event sources.
+        """
+        eventsources = self._session.get(
+            f"https://{self.iserv_url}/iserv/calendar/api/eventsources"
+        ).json()
+        logging.info("Got eventsources")
+        return eventsources
+
+    # Misc
+
+    def get_conference_health(self):
+        """
+        Get the health status of the conference API endpoint.
+
+        :return: JSON response containing the health status of the API
+        """
+        health = self._session.get(
+            f"https://{self.iserv_url}/iserv/videoconference/api/health"
+        ).json()
+        logging.info("Got Conference Health")
+        return health
+
+    def file(self, davurl="default", username="default", password="default", path="/"):
+        """
+        A function that initializes a WebDAV client with the provided or default credentials and returns the client object.
+
+        Parameters:
+            davurl (str): The WebDAV URL. Default is "default".
+            username (str): The username for authentication. Default is "default".
+            password (str): The password for authentication. Default is "default".
+            path (str): The path for the WebDAV client. Default is "/".
 
         Returns:
-            dict: A JSON object containing the status.
-
-        Raises:
-            requests.exceptions.RequestException: If there is an error while making the request.
+            WebDAV client object: A WebDAV client object initialized with the provided or default credentials.
         """
-        notifications = self._session.post(
-            f"https://{self.iserv_url}/iserv/notification/api/v1/notifications/readall",
-            cookies={
-                "IServSAT": self._IServSAT,
-                "IServSATId": self._IServSATId,
-                "IServSession": self._IServSession,
-            },
-        )
-        logging.info("Read all notifications")
-        return notifications
-
-    def read_notification(self, notification_id: int):
-        """
-        Sends a POST request to the IServ notification API to mark a specific notification as read.
-
-        Args:
-            notification_id (int): The ID of the notification to be marked as read. Note: notification_id can be returned from get_notifications()
-
-        Returns:
-            dict: The JSON response from the API call.
-
-        Raises:
-            requests.exceptions.RequestException: If there was an error making the API request.
-        """
-        notification = self._session.post(
-            f"https://{self.iserv_url}/iserv/notification/api/v1/notifications/{notification_id}/read",
-            cookies={
-                "IServSAT": self._IServSAT,
-                "IServSATId": self._IServSATId,
-                "IServSession": self._IServSession,
-            },
-        )
-        logging.info("read notification " + notification_id)
-        return notification
-
-    def get_user_info(self, user):
-        """
-        A function to retrieve user information from a given URL and parse it into a dictionary.
-        :param user: str - The user for who the information is being retrieved.
-        :return: dict - A dictionary containing the user information.
-        """
-        response = self._session.get(
-            f"https://{self.iserv_url}/iserv/addressbook/public/show/{user}"
-        )
-        soup = BeautifulSoup(response.text, "html.parser")
-        table = soup.find("table")
-
-        # Read the table into a list of DataFrames
         try:
-            dfs = pd.read_html(StringIO(str(table)), flavor="bs4")
-            data = []
-            for df in dfs:
-                data_dict = dict(zip(df[0], df[1]))
-                data.append(data_dict)
-            logging.info("Got info of user " + user)
-        except ValueError:
-            logging.error("No such user found!")
-            raise ValueError("No such user found!")
-
-        return data[0]
-
-    def get_disk_space(self) -> dict:
-        response = self._session.get(f"https://{self.iserv_url}/iserv/du/account")
-        soup = BeautifulSoup(response.text, "html.parser")
-        disk_json = soup.find("script", id="user-diskusage-data").get_text()
-        disk_json = json.loads(disk_json.strip("()"))
-
-        return disk_json
+            davurl = "webdav." + self.iserv_url if davurl == "default" else davurl
+            username = self.username if username == "default" else username
+            password = self._password if password == "default" else password
+            options = {
+                "webdav_hostname": "https://" + davurl,
+                "webdav_login": username,
+                "webdav_password": password,
+            }
+            self.__DAVclient = wc.Client(options)
+            logging.info("Files initiated")
+            return self.__DAVclient
+        except WebDavException as e:
+            logging.error("Exception at file (webdav): " + str(e))
+            raise ValueError("Exception at file (webdav): " + str(e))
 
     def get_folder_size(self, path: str) -> dict:
         response = self._session.get(
