@@ -1031,7 +1031,7 @@ class IServAPI:
         return events.json()
 
     def delete_event(
-        self, uid: str, _hash: str, calendar: str, start: str, series: str = "single"
+        self, uid: str, _hash: str, calendar: str, start: str, series: bool = False
     ):
         """Deletes a specified event or reocurring event series.
 
@@ -1040,16 +1040,12 @@ class IServAPI:
             _hash (str): hash of the event
             calendar (str): calendar(_id) of the event
             start (str): The beginning date and time (add time if you are having trouble deleting single events)
-            series (str, optional): Can either be `single` or `series`. Defaults to "single".
-
-        Raises:
-            ValueError: `series` may only be `single` or `series`
+            series (bool, optional): Delete reocurring events.
 
         Returns:
             JSON: Status
         """
-        if series not in ("single", "series"):
-            raise ValueError("`series` may only be `series` or `single`")
+
         events = self._session.post(
             f"https://{self.iserv_url}/iserv/calendar/delete",
             params={
@@ -1057,7 +1053,7 @@ class IServAPI:
                 "hash": _hash,
                 "cal": calendar,
                 "start": dateutil.parser.parse(start).strftime("%Y-%m-%dT%H:%M:%S%z"),
-                "edit_series": series,
+                "edit_series": "series" if series else "single",
             },
             cookies={
                 "IServSAT": self._IServSAT,
