@@ -1006,6 +1006,18 @@ class IServAPI:
         return events.json()
 
     def get_calendar_plugin_events(self, plugin: str, start: str, end: str):
+        """Lists all events produced by a plugin.
+        Plugins can be retrieved from the output of
+        `get_eventsources()` where `id` is the plugin id if the `type` is `plugin`.
+
+        Args:
+            plugin (str): The name of the plugin
+            start (str): The start date of the results
+            end (str): The end date of the results
+
+        Returns:
+            JSON: Events
+        """
         events = self._session.get(
             f"https://{self.iserv_url}/iserv/calendar/feed/plugin",
             params={
@@ -1018,7 +1030,26 @@ class IServAPI:
         logging.info("Got calendar plugin events")
         return events.json()
 
-    def delete_event(self, uid: str, _hash: str, calendar: str, start: str):
+    def delete_event(
+        self, uid: str, _hash: str, calendar: str, start: str, series: str = "single"
+    ):
+        """Deletes a specified event or reocurring event series.
+
+        Args:
+            uid (str): uid of the event
+            _hash (str): hash of the event
+            calendar (str): calendar(_id) of the event
+            start (str): The beginning date and time (add time if you are having trouble deleting single events)
+            series (str, optional): Can either be `single` or `series`. Defaults to "single".
+
+        Raises:
+            ValueError: `series` may only be `single` or `series`
+
+        Returns:
+            JSON: Status
+        """
+        if series not in ("single", "series"):
+            raise ValueError("`series` may only be `series` or `single`")
         events = self._session.post(
             f"https://{self.iserv_url}/iserv/calendar/delete",
             params={
@@ -1026,6 +1057,7 @@ class IServAPI:
                 "hash": _hash,
                 "cal": calendar,
                 "start": dateutil.parser.parse(start).strftime("%Y-%m-%dT%H:%M:%S%z"),
+                "edit_series": series,
             },
             cookies={
                 "IServSAT": self._IServSAT,
