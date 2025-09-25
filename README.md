@@ -342,10 +342,12 @@ status = delete_event(
   uid="XXXXXXXXXXXXXX@iservserver.de",
   _hash="541f2d74099d785d1286c03903a2e826",
   calendar="/my.iserv.account/home",
-  start="2025-09-25T16:00:00+02:00")
+  start="2025-09-25T16:00:00+02:00",
+  series=True
+  )
 ```
 
-Deletes an event. All parameters are returned by [`get_events()`](#get-events)
+Deletes an event. All parameters, except series, are returned by [`get_events()`](#get-events).
 
 ---
 ### Misc
