@@ -1,10 +1,6 @@
 from setuptools import setup, find_packages
 
 
-
-
-
-
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
@@ -24,7 +20,8 @@ setup(
         "lxml",
         "webdavclient",
         "pandas",
-        "html5lib"
+        "html5lib",
+        "dateutil",
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
