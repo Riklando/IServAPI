@@ -5,3 +5,4 @@ lxml
 webdavclient
 pandas
 dateutil
+typing
