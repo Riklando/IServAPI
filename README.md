@@ -64,6 +64,7 @@ print(user_info)
       - [Search event](#search-for-events)
       - [Get plugin events](#get-events-by-plugin)
       - [Delete event](#delete-event)
+      - [Create event](#create-event)
     - ### Misc
       - [Get conference health](#get-conference-health)
       - [Files](#files)
@@ -350,6 +351,119 @@ status = delete_event(
 Deletes an event. All parameters, except series, are returned by [`get_events()`](#get-events).
 
 ---
+
+#### Create event
+
+```python
+create_event(
+        subject = "Math exam",
+        calendar: "/my.iserv.user/home",
+        start: "27.09.2025 16:00",
+        end: "28.09.2025 10:00",
+        category: str = "exams",
+        location: str = "school",
+        alarms: = ["7D", "2D", "1D"],
+        isAllDayLong: bool = False,
+        description: str = "",
+        participants: list = [],
+        show_me_as: Literal["OPAQUE", "TRANSPARENT"] = "OPAQUE",
+        privacy: Literal["PUBLIC", "CONFIDENTIAL", "PRIVATE"] = "PUBLIC",
+        recurring: Recurring = {},
+  )
+```
+Create a new event in the IServ calendar
+
+This method constructs and submits an HTTP request to the IServ calendar API to create a new event with optional alarms, recurring patterns, and participants.
+
+---
+
+## Parameters
+
+- **subject** (`str`):  
+  The title or subject of the event.
+
+- **calendar** (`str`):  
+  The ID of the calendar where the event will be created.
+
+- **start** (`str`):  
+  Event start datetime in any format parsable by `dateutil.parser`.
+
+- **end** (`str`):  
+  Event end datetime in any format parsable by `dateutil.parser`.
+
+- **category** (`str`, optional):  
+  Category or tag for the event. Defaults to `""`.
+
+- **location** (`str`, optional):  
+  Location of the event. Defaults to `""`.
+
+- **alarms** (`list[AlarmType]`, optional):  
+  List of alarms for the event. Each alarm can be:
+  - A string: `"0M"`, `"5M"`, `"15M"`, `"30M"`, `"1H"`, `"2H"`, `"12H"`, `"1D"`, `"2D"`, `"7D"`
+  - A dictionary defining custom alarms:
+    - **Custom datetime alarm**:  
+      ```python  
+      alarms = [{"custom_date_time": {"dateTime": "dd.mm.YYYY HH:MM"}}]  
+      ```
+    - **Custom interval alarm**:  
+      ```python  
+      alarms = [{  
+          "custom_interval": {  
+              "interval": {  
+                  "days": int,  
+                  "hours": int,  
+                  "minutes": int,  
+              },  
+              "before": bool,  
+          }  
+      }]  
+      ```
+  Defaults to `[]`.
+
+- **isAllDayLong** (`bool`, optional):  
+  Whether the event lasts all day. Defaults to `False`.
+
+- **description** (`str`, optional):  
+  Detailed description of the event. Defaults to `""`.
+
+- **participants** (`list`, optional):  
+  List of participant identifiers (usernames or emails) to invite to the event. Defaults to `[]`.
+
+- **show_me_as** (`Literal["OPAQUE", "TRANSPARENT"]`, optional):  
+  Visibility of the event on your calendar.  
+  - `"OPAQUE"` blocks time.  
+  - `"TRANSPARENT"` shows availability.  
+  Defaults to `"OPAQUE"`.
+
+- **privacy** (`Literal["PUBLIC", "CONFIDENTIAL", "PRIVATE"]`, optional):  
+  Privacy level of the event. Defaults to `"PUBLIC"`.
+
+- **recurring** (`Recurring`, optional):  
+  Dictionary defining recurring event rules. Example structure:  
+  ```python  
+  {  
+      "intervalType": "NO|DAILY|WEEKDAYS|WEEKLY|MONTHLY|YEARLY",  
+      "interval": int,           # Only for types other than NO/WEEKDAYS  
+      "monthlyIntervalType": "BYMONTHDAY|BYDAY",  # Required for MONTHLY  
+      "monthDayInMonth": int,    # Required if BYMONTHDAY  
+      "monthInterval": str,      # Required if BYDAY  
+      "monthDay": str,           # Day of week if BYDAY  
+      "recurrenceDays": str,     # Comma-separated weekdays if WEEKLY  
+      "endType": "NEVER|COUNT|UNTIL",  
+      "endInterval": int,        # Required if COUNT  
+      "untilDate": str           # Required if UNTIL, "DD.MM.YYYY"  
+  }  
+  ```
+
+---
+
+## Notes
+
+- All dates and times are automatically parsed and formatted to IServ's expected format.  
+- The method prints any error messages returned by the IServ API.  
+
+---
+
 ### Misc
 
 #### Get conference health
